@@ -1,2 +1,2 @@
-# Reef
-## CORAL Reconstructability Elimination Framework
+# REEF
+## REconstructability of Expressions Framework
