@@ -1,9 +1,6 @@
-from datasets import load_dataset, Dataset, DatasetDict
+from output import load_dataset, Dataset, DatasetDict
 from typing import Callable, Optional, Union, List
 import pandas as pd
-from pathlib import Path
-import spacy
-
 
 class DatasetLoader:
     """
@@ -171,71 +168,3 @@ class DatasetLoader:
         else:
             print(f"Rows: {len(self.dataset)}")
             print(f"Columns: {self.dataset.column_names}")
-
-
-def to_nouns(s: str, nlp) -> str:
-    doc = nlp(s)
-    nouns = []
-    for token in doc:
-        is_noun = token.pos_ == 'NOUN' or token.pos_ == 'PROPN'
-        if is_noun:
-            nouns.append(token.text)
-    return " ".join(nouns)
-
-if __name__ == "__main__":
-    # Configuration
-    FRAGMENT_SIZE = 10000  # Process 10k rows at a time
-    OUTPUT_FILE = "datasets/fineweb-edu-1B-nouns.csv"
-
-    # Load spaCy model once
-    nlp = spacy.load("en_core_web_sm")
-    spacy.require_gpu()
-    print(f"Using GPU: {spacy.prefer_gpu()}")
-
-    # Load dataset
-    loader = DatasetLoader("codelion/fineweb-edu-1B", split="train")
-    print(loader.info())
-
-    total_rows = len(loader.dataset)
-    print(f"Total rows: {total_rows:,}")
-
-    # Create output directory if needed
-    Path(OUTPUT_FILE).parent.mkdir(parents=True, exist_ok=True)
-
-    # Process in fragments
-    first_fragment = True
-    for start_idx in range(0, total_rows, FRAGMENT_SIZE):
-        end_idx = min(start_idx + FRAGMENT_SIZE, total_rows)
-        print(f"Processing rows {start_idx:,} to {end_idx:,}...")
-
-        # Select fragment
-        fragment = loader.dataset.select(range(start_idx, end_idx))
-        fragment_df = fragment.to_pandas()
-
-        # Extract texts
-        texts = fragment_df["text"]
-
-        # Process with spaCy
-        texts_as_nouns = []
-        for i, doc in enumerate(nlp.pipe(texts, batch_size=32)):
-            if (i + 1) % 1000 == 0:
-                print(f"  Processed {i + 1}/{len(texts)} texts in fragment")
-            nouns = " ".join([token.text for token in doc if token.pos_ == "NOUN"])
-            texts_as_nouns.append(nouns)
-
-        # Add processed column
-        fragment_df["text_nouns"] = texts_as_nouns
-
-        # Write to CSV (append mode after first fragment)
-        if first_fragment:
-            fragment_df.to_csv(OUTPUT_FILE, index=False, mode='w')
-            first_fragment = False
-        else:
-            fragment_df.to_csv(OUTPUT_FILE, index=False, mode='a', header=False)
-
-        print(f"Saved fragment to {OUTPUT_FILE}")
-
-        # Clear memory
-        del fragment, fragment_df, texts, texts_as_nouns
-
-    print(f"\nSaved to {OUTPUT_FILE}")
