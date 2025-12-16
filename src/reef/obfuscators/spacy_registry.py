@@ -12,5 +12,5 @@ def get_spacy_nlp(pipeline="ner") -> Any:
         elif pipeline == "full":
             _models[pipeline] = spacy.load("en_core_web_trf")
         elif pipeline == "de":
-            _models[pipeline] = spacy.load('de_dep_news_trf')
+            _models[pipeline] = spacy.load("de_dep_news_trf")
     return _models[pipeline]
