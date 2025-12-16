@@ -1,4 +1,4 @@
-from dataloaders.base import DataLoader
+from reef.dataloaders.base import DataLoader
 
 
 class TxtLoader(DataLoader):
