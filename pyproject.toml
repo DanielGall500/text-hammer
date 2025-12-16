@@ -13,7 +13,7 @@ authors = [
     {name = "Daniel Gallagher", email = "gallagher@infai.org"}
 ]
 keywords = ["nlp", "obfuscation", "anonymisation", "copyright-protection"]
-classifiers = [, 
+classifiers = [
     "Intended Audience :: Developers",
     "Programming Language :: Python :: 3",
 ]
