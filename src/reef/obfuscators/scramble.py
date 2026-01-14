@@ -1,17 +1,17 @@
 from reef.obfuscators.base import Obfuscator
 from nltk.tokenize.treebank import TreebankWordDetokenizer
-from spacy.tokens import Token
+from spacy.tokens import Token, Doc
 from typing import Literal
 import random
 
 
 class LinearScrambleObfuscator(Obfuscator):
-    def obfuscate(self, text: str, seed: int = 100) -> str:
-
+    # FIX: NOT DOC
+    def obfuscate(self, doc, seed: int = 100) -> str:
         random.seed(seed)
-        return self._linear_scramble(text)
+        return self._linear_scramble(doc)
 
-    def _linear_scramble(self, text: str) -> str:
+    def _linear_scramble(self, text) -> str:
         words = text.split()
         random.shuffle(words)
         scrambled_words = " ".join(words)
@@ -24,7 +24,7 @@ class HierarchicalScrambleObfuscator(Obfuscator):
 
     def obfuscate(
         self,
-        text: str,
+        doc: Doc,
         algorithm: HierarchicalAlgorithm = "shuffle-siblings",
         seed: int = 100,
     ) -> str:
@@ -32,19 +32,15 @@ class HierarchicalScrambleObfuscator(Obfuscator):
         random.seed(seed)
 
         if algorithm == "shuffle-siblings":
-            return self._hierarchical_scramble(text, algorithm=algorithm)
+            return self._hierarchical_scramble(doc, algorithm=algorithm)
         elif algorithm == "reverse-head-direction":
-            return self._hierarchical_scramble(text, algorithm=algorithm)
+            return self._hierarchical_scramble(doc, algorithm=algorithm)
 
     def _hierarchical_scramble(
-        self, text: str, algorithm: HierarchicalAlgorithm = "shuffle-siblings"
+            self, doc: Doc, algorithm: HierarchicalAlgorithm = "shuffle-siblings"
     ) -> str:
-        nlp = self.spacy_nlp(spacy_type="full")
-        doc = nlp(text)
-
         d = {}
         for token in doc:
-            print("Checking token ", token.text)
             path_to_root = self._get_route_to_root(token)
             d_from_l = get_nested_dict_from_list(path_to_root)
             deep_update(d, d_from_l)
