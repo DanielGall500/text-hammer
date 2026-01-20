@@ -1,12 +1,10 @@
-<!-- PROJECT LOGO -->
 <br />
 <div align="center">
-  <h3 align="center">text-hammer 🔨</h3>
+  <h3 align="center">text-mallet 🔨</h3>
 
   <p align="center">
         Smash Text Into Obfuscated Formats
     <br />
-    <!-- <a href="https://github.com/othneildrew/Best-README-Template"><strong>Explore the docs »</strong></a> -->
     <br />
     <br />
     <a href="">View Demo</a>
