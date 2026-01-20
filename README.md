@@ -8,5 +8,6 @@ When we think about how strings can be altered for obfuscation, we can look at t
 * Meanings
 * Grammatical Relations (hierarchical structure)
 * Sequence Information (linear structure)
+
 Each of the above contributes a certain amount of *information* to the final text. This tool allows you to directly or indirectly reduce the information present in a text.
 Languages vary significantly in which they most rely on for certain features, for instance English relies heavily on structure for assigning grammatical case while German relies more on morphological adjustments with relatively free word order.
