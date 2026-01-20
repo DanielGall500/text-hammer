@@ -1,15 +1,23 @@
 from reef.obfuscators.base import Obfuscator
 from nltk.tokenize.treebank import TreebankWordDetokenizer
+from nltk.tokenize import sent_tokenize
 from spacy.tokens import Token, Doc
 from typing import Literal
 import random
 
 
-class LinearScrambleObfuscator(Obfuscator):
-    # FIX: NOT DOC
-    def obfuscate(self, doc, seed: int = 100) -> str:
+# the linear scrambler does not use SpaCy
+class LinearScrambleObfuscator():
+    def obfuscate(self, text: str, scramble_within_sentence: bool = False, seed: int = 100) -> str:
         random.seed(seed)
-        return self._linear_scramble(doc)
+        if scramble_within_sentence:
+            sentences = sent_tokenize(text)
+            scrambled_sentences = [
+                self._linear_scramble(s) for s in sentences
+            ]
+            return " ".join(scrambled_sentences)
+        else:
+            return self._linear_scramble(text)
 
     def _linear_scramble(self, text) -> str:
         words = text.split()
