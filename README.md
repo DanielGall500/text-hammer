@@ -1,6 +1,5 @@
-# REconstructability of Expressions Framework (REEF)
-
-Tools for the conversion of text into a Derived Text Format. This prevents reconstructability of the original text.
+# text-hammer
+A package for the smashing of text into [derived](https://text-plus.org/en/themen-dokumentation/atf/) formats, aimed at reducing the possibility of privacy or copyright infringement while maintaining the text utility for certain tasks e.g. classification, retrieval.
 
 When we think about how strings can be altered for obfuscation, we can look at the following aspects:
 * Word Forms (the character sequence)
@@ -9,7 +8,5 @@ When we think about how strings can be altered for obfuscation, we can look at t
 * Meanings
 * Grammatical Relations (hierarchical structure)
 * Sequence Information (linear structure)
-
-Each of the above categories contributes a certain amount of *information* to an expression. Languages vary significantly in which they most rely on for certain features, for instance English relies heavily on structure for assigning grammatical case while German relies more on morphological adjustments with relatively free word order.
-
-The goal of REEF is to give you the ability to obfuscate these various aspects in order to convert the text to a format that is difficult to reconstruct and hence more suitable for privacy and copyright protection.
+Each of the above contributes a certain amount of *information* to the final text. This tool allows you to directly or indirectly reduce the information present in a text.
+Languages vary significantly in which they most rely on for certain features, for instance English relies heavily on structure for assigning grammatical case while German relies more on morphological adjustments with relatively free word order.
