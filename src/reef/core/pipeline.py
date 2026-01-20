@@ -1,4 +1,3 @@
-from pandas.core.series import algorithms
 from reef.dataloaders.txt_loader import TxtLoader
 from reef.obfuscators.replace import ReplaceObfuscator
 from reef.obfuscators.lemmatise import LemmaObfuscator
@@ -6,166 +5,96 @@ from reef.obfuscators.scramble import (
     LinearScrambleObfuscator,
     HierarchicalScrambleObfuscator,
 )
-from datasets import load_from_disk, load_dataset, DatasetDict, concatenate_datasets
+from pathlib import Path
+from datasets import load_from_disk, concatenate_datasets
 from reef.obfuscators.spacy_registry import get_spacy_nlp
+from typing import Literal
 import os
 import torch
+from functools import partial
 
 torch.set_num_threads(1)
 
-nlp = get_spacy_nlp("ner")
+nlp = get_spacy_nlp("full")
 replace_obfus = ReplaceObfuscator()
-MAP_BATCH_SIZE = 10     # spaCy batch size
-def process_batch(batch):
+lemma_obfus = LemmaObfuscator()
+
+hierarchical_scramble_obfus = HierarchicalScrambleObfuscator()
+linear_scramble_obfus = LinearScrambleObfuscator()
+
+ObfuscationTechnique = Literal["noun","noun-pos","noun-propn",
+                               "noun-propn-pos","lemmatization",
+                               "scramble-BoW","scramble-BoW-by-sentence",
+                               "scramble-shuffle-siblings","scramble-reverse-head"]
+
+def obfuscate_batch(batch, algorithm: ObfuscationTechnique, obfuscated_column_name:str):
     texts = batch["text"]
 
-    docs = nlp.pipe(
-        texts,
-        batch_size=MAP_BATCH_SIZE,
-        n_process=2
-    )
+    match(algorithm):
+        case "noun" | "noun-propn" | "noun-pos" | "noun-propn-pos":
+            obfuscator = ReplaceObfuscator()
+        case "lemmatization":
+            obfuscator = LemmaObfuscator()
+        case "scramble-BoW" | "scramble-BoW-by-sentence":
+            obfuscator = LinearScrambleObfuscator()
+        case "scramble-shuffle-siblings" | "scramble-reverse-head":
+            obfuscator = HierarchicalScrambleObfuscator()
 
-    batch["text_lemmas"] = [
-        replace_obfus.obfuscate(doc, algorithm="nouns-only", replace_with_pos=True) for doc in docs
+    is_using_spacy = (algorithm != "scramble-BoW") and (algorithm != "scramble-BoW-by-sentence")
+    if is_using_spacy:
+        texts = nlp.pipe(texts)
+
+    batch[obfuscated_column_name] = [
+        obfuscator.obfuscate(text) for text in texts
     ]
+
     return batch
 
+
 class ReefPipeline:
-    def run(self, repo_name: str) -> None:
-        dataset = load_dataset(repo_name)
-
-
-        CHECKPOINT_DIR = "new_checkpoints/replace_nouns_with_pos"
-        FINAL_DIR = "new_checkpoints/transformed_dataset_replace/"
-        CHUNK_SIZE = 5_000       # examples per checkpoint
-
-        os.makedirs(CHECKPOINT_DIR, exist_ok=True)
-
-        final_splits = {}
-
-        for split_name, split_ds in dataset.items():
-            print(f"\nProcessing split: {split_name}")
-            processed_chunks = []
-
-            for start in range(0, len(split_ds), CHUNK_SIZE):
-                end = min(start + CHUNK_SIZE, len(split_ds))
-                ckpt_path = f"{CHECKPOINT_DIR}/{split_name}_{start}"
-
-                if os.path.exists(ckpt_path):
-                    print(f"  ↳ Loading checkpoint {ckpt_path}")
-                    chunk = load_from_disk(ckpt_path)
-                else:
-                    print(f"  ↳ Processing examples {start}:{end}")
-                    chunk = split_ds.select(range(start, end))
-
-                    chunk = chunk.map(
-                        process_batch,
-                        batched=True,
-                        batch_size=MAP_BATCH_SIZE,
-                        desc=f"Lemmatising {split_name} [{start}:{end}]",
-                        num_proc=8,
-                        cache_file_name=None
-                    )
-
-                    chunk.save_to_disk(ckpt_path)
-
-                processed_chunks.append(chunk)
-
-            final_splits[split_name] = concatenate_datasets(processed_chunks)
-
-        # Reassemble DatasetDict
-        from datasets import DatasetDict
-        final_dataset = DatasetDict(final_splits)
-
-        final_dataset.save_to_disk(FINAL_DIR)
-
-
-    def run_test(self) -> bool:
-        path_to_dataset = "./datasets/leipzig.txt"
-
-        txt_loader = TxtLoader()
-        replace_obfuscator = ReplaceObfuscator()
-
-        text = txt_loader.load(path_to_dataset)
-
-        lemma_obf = LemmaObfuscator()
-        output_lemma = lemma_obf.obfuscate(text)
-
-        linear_obfus = LinearScrambleObfuscator()
-        output_linear = linear_obfus.obfuscate(text)
-
-        hierarchical_obfus = HierarchicalScrambleObfuscator()
-        output_shuffle_siblings = hierarchical_obfus.obfuscate(text, "shuffle-siblings")
-        output_rev_head_direction = hierarchical_obfus.obfuscate(
-            text, "reverse-head-direction"
+    def run(self, dataset, algorithm: ObfuscationTechnique, obfuscated_column_name:str, batch_size:int=100):
+        obfuscated_dataset = dataset.map(
+            partial(obfuscate_batch, algorithm=algorithm, obfuscated_column_name=obfuscated_column_name),
+            batched=True,
+            batch_size=batch_size,
+            desc="Obfuscating...",
+            num_proc=None,
+            cache_file_name=None,
+            load_from_cache_file=False,
         )
+        return obfuscated_dataset
 
-        replace_obfus = ReplaceObfuscator()
-        output_nouns_and_propn_only = replace_obfus.obfuscate(
-            text, algorithm="nouns-and-prop-only"
-        )
-        output_nouns_only = replace_obfus.obfuscate(
-                text, algorithm="nouns-only"
-        )
-        output_no_nouns_or_propn = replace_obfus.obfuscate(
-            text, algorithm="no-nouns-or-prop"
-        )
-        output_no_nouns = replace_obfus.obfuscate(
-                text, 
-                algorithm="no-nouns"
-        )
+    def run_in_chunks(self, dataset, algorithm: ObfuscationTechnique, obfuscated_column_name:str, save_chunks_to_folder: Path, batch_size:int=100, chunk_size:int=5_000) -> None:
+        processed_chunks = []
+        num_samples = len(dataset)
 
-        output_nouns_and_propn_only_replace = replace_obfus.obfuscate(
-            text, 
-            algorithm="nouns-and-prop-only",
-            replace_with_pos=True
-        )
-        output_nouns_only_replace = replace_obfus.obfuscate(
-                text,
-                algorithm="nouns-only",
-                replace_with_pos=True
-        )
-        output_no_nouns_or_propn_replace = replace_obfus.obfuscate(
-                text, 
-                algorithm="no-nouns-or-prop",
-                replace_with_pos=True
-        )
-        output_no_nouns_replace = replace_obfus.obfuscate(
-                text, 
-                algorithm="no-nouns",
-                replace_with_pos=True
-        )
+        for start in range(0, num_samples, chunk_size):
+            end = min(start + chunk_size, num_samples)
+            ckpt_path = Path(save_chunks_to_folder) / f"obfuscated_ckpt_{start}_{end}"
 
-        obfuscations = {
-            "Lemmas Only": output_lemma,
-            "Linear": output_linear,
-            "Hierarchical (Shuffle Siblings Randomly)": output_shuffle_siblings,
-            "Hierarchical (Reverse Head Direction Randomly)": output_rev_head_direction,
-            "Nouns & Proper Nouns Only": output_nouns_and_propn_only,
-            "Nouns Only": output_nouns_only,
-            "No Nouns": output_no_nouns,
-            "No Nouns Nor Proper Nouns": output_no_nouns_or_propn,
-            "Nouns & Proper Nouns Only (incl. POS)": output_nouns_and_propn_only_replace,
-            "Nouns Only (incl. POS)": output_nouns_only_replace,
-            "No Nouns (incl. POS)": output_no_nouns_replace,
-            "No Nouns Nor Proper Nouns (incl. POS)": output_no_nouns_or_propn_replace
-        }
+            if os.path.exists(ckpt_path):
+                print(f"Loading checkpoint {ckpt_path}")
+                chunk = load_from_disk(ckpt_path)
+            else:
+                print(f"Processing examples {start}:{end}")
+                chunk = dataset.select(range(start, end))
 
-        # Display results
-        print("=" * 80)
-        print("ORIGINAL TEXT")
-        print("=" * 80)
-        print(text)
-        print("\n")
+                chunk = chunk.map(
+                    partial(obfuscate_batch, algorithm=algorithm, obfuscated_column_name=obfuscated_column_name),
+                    batched=True,
+                    batch_size=batch_size,
+                    desc=f"Obfuscating [{start}:{end}]...",
+                    num_proc=None,
+                    cache_file_name=None,
+                    load_from_cache_file=False,
+                )
 
-        for method_name, obfuscated_text in obfuscations.items():
-            print("=" * 80)
-            print(f"OBFUSCATION METHOD: {method_name}")
-            print("=" * 80)
-            print(obfuscated_text)
-            print("\n")
+                chunk.save_to_disk(ckpt_path)
 
-        return True
+            processed_chunks.append(chunk)
+        obfuscated_dataset = concatenate_datasets(processed_chunks)
+
+        return obfuscated_dataset
 
     def load(self):
         pass
