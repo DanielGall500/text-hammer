@@ -1,6 +1,6 @@
 <br />
 <div align="center">
-  <h3 align="center">text-mallet 🔨</h3>
+  <img src="assets/mallet.svg" alt="Logo" width="200" height="200">
 
   <p align="center">
         Smash Text Into Obfuscated Formats
