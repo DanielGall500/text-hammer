@@ -1,6 +1,8 @@
-from typing import List, Dict, Union, Optional
 from transformers import BertTokenizer, BertForMaskedLM
+from transformers import AutoTokenizer, AutoModelForMaskedLM
+from typing import List, Dict, Union, Optional
 from nltk.tokenize import sent_tokenize
+import torch.nn.functional as F
 from datasets import Dataset
 import numpy as np
 import torch
@@ -36,8 +38,8 @@ class SurprisalCalculator:
         else:
             self.device = device
 
-        self.tokenizer = BertTokenizer.from_pretrained(model_name)
-        self.model = BertForMaskedLM.from_pretrained(model_name)
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True)
+        self.model = AutoModelForMaskedLM.from_pretrained(model_name)
         self.model.to(self.device)
         self.model.eval()
 
@@ -65,10 +67,8 @@ class SurprisalCalculator:
         all_token_ids = []
 
         for sentence in text_by_sent:
-            print("sentence")
             inputs = self.tokenizer(sentence, return_tensors="pt")
             tokens = self.tokenizer.convert_ids_to_tokens(inputs["input_ids"][0])
-            print(tokens)
 
             input_ids = inputs["input_ids"].to(self.device)
 
@@ -105,6 +105,61 @@ class SurprisalCalculator:
             result["tokens"] = tokens
 
         return result
+
+    def calculate_word_level_surprisal(self, text: str):
+        text_by_sent = sent_tokenize(text)
+
+        all_surprisals = []
+        all_words = []
+
+        for sentence in text_by_sent:
+            enc = self.tokenizer(
+                sentence,
+                return_tensors="pt",
+                return_offsets_mapping=True
+            )
+
+            input_ids = enc["input_ids"][0]
+            offsets = enc["offset_mapping"][0]
+            word_ids = enc.word_ids()
+
+            # compute surprisals for each word 
+            surprisals = torch.zeros(len(input_ids))
+            with torch.no_grad():
+                for i, wid in enumerate(word_ids):
+                    if wid is None:
+                        continue
+                    masked = input_ids.clone()
+                    masked[i] = self.tokenizer.mask_token_id
+                    logits = self.model(masked.unsqueeze(0)).logits[0, i]
+                    log_probs = F.log_softmax(logits, dim=-1)
+                    surprisals[i] = -log_probs[input_ids[i]]
+
+            word_surprisal = {}
+            word_spans = {}
+
+            for i, wid in enumerate(word_ids):
+                if wid is None:
+                    continue
+                word_surprisal.setdefault(wid, 0.0)
+                word_surprisal[wid] += surprisals[i].item()
+
+                # word span sets word ID : (start, end)
+                # gets rid of ## for instance in tokeniser
+                word_spans.setdefault(wid, [offsets[i][0], offsets[i][1]])
+                word_spans[wid][0] = min(word_spans[wid][0], offsets[i][0])
+                word_spans[wid][1] = max(word_spans[wid][1], offsets[i][1])
+
+            words_in_sent = [sentence[start:end] for wid,(start,end) in word_spans.items()]
+            # word_ids_in_sent = word_spans.keys()
+            word_surp_in_sent = [word_surprisal[wid] for wid in word_spans.keys()]
+
+            all_words.extend(words_in_sent)
+            all_surprisals.extend(word_surp_in_sent)
+
+        result = {"surprisals": all_surprisals, "words": all_words}
+        return result
+
 
     def calculate_surprisal_batch(
         self,
