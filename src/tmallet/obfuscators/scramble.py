@@ -22,6 +22,7 @@ class LinearScrambleObfuscator(Obfuscator):
             )
 
         scramble_within_sentence = config["scramble_within_sentence"]
+
         if scramble_within_sentence:
             sentences = sent_tokenize(text)
             scrambled_sentences = [self._linear_scramble(s) for s in sentences]
