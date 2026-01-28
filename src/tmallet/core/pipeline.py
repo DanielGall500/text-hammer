@@ -8,7 +8,7 @@ from tmallet.obfuscators import (
 )
 from datasets import load_from_disk, concatenate_datasets
 from tmallet.obfuscators.base import Obfuscator, SpaCyObfuscator
-from typing import Literal,Dict,Union,List,Optional
+from typing import Literal, Dict, Union, List, Optional
 from functools import partial
 from pathlib import Path
 import torch
@@ -37,16 +37,21 @@ config = {"algorithm": algorithm}
 config = {"threshold": 4}
 """
 
+
 class TMallet:
     def __init__(self):
         self.nlp = None
 
-    def obfuscate(self, text: Union[List[str],str], config: Dict) -> Union[List[str],str]:
+    def obfuscate(
+        self, text: Union[List[str], str], config: Dict
+    ) -> Union[List[str], str]:
         algorithm = config["algorithm"]
         obfuscator = self._get_obfuscator(algorithm)
         return obfuscator.obfuscate(text, config)
 
-    def _get_obfuscator(self, algorithm: ObfuscationTechnique) -> Union[Obfuscator,SpaCyObfuscator]:
+    def _get_obfuscator(
+        self, algorithm: ObfuscationTechnique
+    ) -> Union[Obfuscator, SpaCyObfuscator]:
         match algorithm:
             case "noun" | "noun-propn" | "noun-pos" | "noun-propn-pos":
                 self.nlp = get_spacy_nlp("ner")
@@ -65,12 +70,17 @@ class TMallet:
                 raise ValueError("Please provide a valid obfuscation algorithm.")
 
     def _obfuscate_batch(
-            self, batch, column: str, column_obfuscated: str, 
-            obfuscator: Union[Obfuscator|SpaCyObfuscator], 
-            config: Dict, 
+        self,
+        batch,
+        column: str,
+        column_obfuscated: str,
+        obfuscator: Union[Obfuscator | SpaCyObfuscator],
+        config: Dict,
     ):
         if column not in batch.columns:
-            raise KeyError(f"Invalid column provided. Please choose one of {batch.columns}")
+            raise KeyError(
+                f"Invalid column provided. Please choose one of {batch.columns}"
+            )
         texts = batch[column]
 
         is_using_spacy = issubclass(type(obfuscator), SpaCyObfuscator)
@@ -89,7 +99,7 @@ class TMallet:
         column_obfuscated: str,
         config: Dict,
         batch_size: int = 100,
-        num_proc:Optional[int]=None
+        num_proc: Optional[int] = None,
     ):
         obfuscated_dataset = dataset.map(
             partial(
@@ -116,7 +126,7 @@ class TMallet:
         save_chunks_to_folder: Path,
         chunk_size: int = 5_000,
         batch_size: int = 100,
-        num_proc:Optional[int]=None
+        num_proc: Optional[int] = None,
     ) -> None:
         processed_chunks = []
         num_samples = len(dataset)
@@ -138,7 +148,7 @@ class TMallet:
                     column_obfuscated=column_obfuscated,
                     config=config,
                     batch_size=batch_size,
-                    num_proc=num_proc
+                    num_proc=num_proc,
                 )
 
                 chunk.save_to_disk(ckpt_path)
