@@ -3,6 +3,8 @@ from nltk.tokenize.treebank import TreebankWordDetokenizer
 from typing import Literal, Dict
 from spacy.tokens import Doc
 
+DEFAULT_CONFIG = {"algorithm": "noun", "replace_with_pos": True}
+
 
 class ReplaceObfuscator(SpaCyObfuscator):
     POS = Literal["NOUN", "PROPN"]
@@ -16,7 +18,7 @@ class ReplaceObfuscator(SpaCyObfuscator):
     def obfuscate(
         self,
         doc: Doc,
-        config: Dict = {"algorithm": "noun", "replace_with_pos": True},
+        config: Dict = DEFAULT_CONFIG,
     ) -> str:
         if "algorithm" not in config.keys():
             raise ValueError(

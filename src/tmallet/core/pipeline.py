@@ -4,8 +4,8 @@ from tmallet.obfuscators import (
     LinearScrambleObfuscator,
     HierarchicalScrambleObfuscator,
     ShannonObfuscator,
-    get_spacy_nlp,
 )
+from tmallet.utils import get_spacy_nlp
 from datasets import load_from_disk, concatenate_datasets
 from tmallet.obfuscators.base import Obfuscator, SpaCyObfuscator
 from typing import Literal, Dict, Union, List, Optional

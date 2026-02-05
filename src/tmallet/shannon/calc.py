@@ -46,7 +46,10 @@ class TextStat:
     text: str
     word_stats: List[WordStat]
 
-    def get_words(self) -> List[str]:
+    def get_words(self) -> List[WordStat]:
+        return self.word_stats
+
+    def get_word_labels(self) -> List[str]:
         return [w.word for w in self.word_stats]
 
     def get_mutual_infos(self) -> List[float]:

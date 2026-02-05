@@ -5,13 +5,17 @@ from spacy.tokens import Token, Doc
 from typing import Dict
 import random
 
+DEFAULT_LINEAR_CONFIG = {"scramble_within_sentence": False}
+
+DEFAULT_HIERARCHICAL_CONFIG = {"algorithm": "scramble-shuffle-siblings"}
+
 
 # the linear scrambler does not use SpaCy
 class LinearScrambleObfuscator(Obfuscator):
     def obfuscate(
         self,
         text: str,
-        config: Dict = {"scramble_within_sentence": False},
+        config: Dict = DEFAULT_LINEAR_CONFIG,
         seed: int = 100,
     ) -> str:
         random.seed(seed)
@@ -41,7 +45,7 @@ class HierarchicalScrambleObfuscator(SpaCyObfuscator):
     def obfuscate(
         self,
         doc: Doc,
-        config: Dict = {"algorithm": "scramble-shuffle-siblings"},
+        config: Dict = DEFAULT_HIERARCHICAL_CONFIG,
         seed: int = 100,
     ) -> str:
         random.seed(seed)

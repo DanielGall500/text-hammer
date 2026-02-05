@@ -1,32 +1,35 @@
 from tmallet.obfuscators.base import Obfuscator
-from tmallet.surprisal.calc import ShannonBERT
+from tmallet.shannon.calc import ShannonBERT
 from typing import Dict
-from tmallet.utils.sentence_surgery import recursive_match_word, perform_surgery
-from nltk.tokenize.treebank import TreebankWordDetokenizer, TreebankWordTokenizer
+from nltk.tokenize.treebank import TreebankWordDetokenizer
 
 DEFAULT_MODEL = "bert-base-cased"
 
-"""
-def recursive_match_word(
-    full_sentence: str,
-    word_list: list[str],
-    word_list_mask_index: int,
-    skippable_tokens: list[str],
-) -> int:
-"""
+DEFAULT_CONFIG = {"threshold": 10, "replace_with": "_"}
+
 
 class ShannonObfuscator(Obfuscator):
+    """
+    Removes tokens depending on their Mutual Information, as assigned
+    by an NLU model from Hugging Face e.g. bert-base-cased.
+
+    Recommended to run this using at least a GPU.
+    """
+
     def __init__(self, device: str = "cpu"):
         self.shannon = ShannonBERT(model_name=DEFAULT_MODEL, device=device)
         self.detok = TreebankWordDetokenizer()
 
-    def obfuscate(self, text: str, config: Dict = { "threshold": 10 }) -> str:
+    def obfuscate(self, text: str, config: Dict = DEFAULT_CONFIG) -> str:
         max_mutual_info = config["threshold"]
+        obfuscatory_token = config["replace_with"]
 
-        mutual_info = self.shannon.get_text_stats(text)
+        shannon_stats_text = self.shannon.get_text_stats(text)
+        words = shannon_stats_text.get_words()
+        surviving_words = [
+            w.word if (w.mutual_information < max_mutual_info) else obfuscatory_token
+            for w in words
+        ]
 
-        final = self.detok.detokenize(
-            [w.word for w in mutual_info.word_stats 
-             if w.mutual_information < max_mutual_info]
-        )
-        return final
+        reconstructed = self.detok.detokenize(surviving_words)
+        return reconstructed
