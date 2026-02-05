@@ -45,7 +45,7 @@ A Soyuz rocket launched two Galileo satellites into orbit on Friday,
 marking a crucial step for Europe’s planned navigation system,
 operator Arianespace announced.
 """
-config = {"algorithm": "noun-propn-pos"}
+config = {"algorithm": "noun-propn", "replace_with_pos": True}
 obfuscated_text = mallet.obfuscate(text, config)
 ```
 Output
