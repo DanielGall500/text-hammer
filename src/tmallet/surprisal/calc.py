@@ -19,6 +19,9 @@ class WordStat:
     word: str
     contextual_surprisal: float
 
+    def __str__(self) -> str:
+        return f"(w: {self.word}, I(w): {round(self.mutual_information,4)}"
+
     @property
     def contextual_probability(self):
         # P(X) = 2 ^ -S(X)
@@ -42,6 +45,15 @@ class WordStat:
 class TextStat:
     text: str
     word_stats: List[WordStat]
+
+    def get_words(self) -> List[str]:
+        return [w.word for w in self.word_stats]
+
+    def get_mutual_infos(self) -> List[float]:
+        return [w.mutual_information for w in self.word_stats]
+
+    def __str__(self) -> str:
+        return "\n".join([str(w) for w in self.word_stats])
 
 
 class ShannonBERT:
@@ -141,12 +153,12 @@ class ShannonBERT:
                 word_spans[wid][0] = min(word_spans[wid][0], offsets[i][0])
                 word_spans[wid][1] = max(word_spans[wid][1], offsets[i][1])
 
-            all_words = []
             words_in_sent = [
                 sentence[start:end] for wid, (start, end) in word_spans.items()
             ]
             word_surp_in_sent = [word_surprisal[wid] for wid in word_spans.keys()]
 
+            all_words = []
             if len(words_in_sent) == len(word_surp_in_sent):
                 for word, word_contextual_surprisal in zip(
                     words_in_sent, word_surp_in_sent
