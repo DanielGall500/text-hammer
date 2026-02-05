@@ -35,6 +35,21 @@ Config Examples
 
 config = {"algorithm": algorithm}
 config = {"threshold": 4}
+
+Lemmatise
+None
+
+Replace
+DEFAULT_CONFIG = {"algorithm": "noun", "replace_with_pos": True}
+
+Linear Scrambler
+DEFAULT_LINEAR_CONFIG = {"scramble_within_sentence": False}
+
+Hierarchical Scrambler
+DEFAULT_HIERARCHICAL_CONFIG = {"algorithm": "scramble-shuffle-siblings"}
+
+Shannon
+DEFAULT_CONFIG = {"threshold": 10, "replace_with": "_"}
 """
 
 
@@ -47,10 +62,23 @@ class TMallet:
     ) -> Union[List[str], str]:
         algorithm = config["algorithm"]
         obfuscator = self._get_obfuscator(algorithm)
+
         if self.nlp:
             text = self.nlp(text)
-        # todo: add config:
-        return obfuscator.obfuscate(text)
+
+        return obfuscator.obfuscate(text, config=config)
+
+    def analyse(self, texts: Union[List[str], str], save_plot_to: str = "dist.png"):
+        self.analyser.get_distribution(texts, save_to=save_plot_to)
+        mean_surp = self.analyser.get_mean(texts)
+        median_surp = self.analyser.get_median(texts)
+
+        print("====")
+        print("Surprisal Analysis")
+        print(f"Mean: {mean_surp}")
+        print(f"Median: {median_surp}")
+        print(f"Distribution saved to: {save_plot_to}")
+        print("====")
 
     def _get_obfuscator(
         self, algorithm: ObfuscationTechnique
