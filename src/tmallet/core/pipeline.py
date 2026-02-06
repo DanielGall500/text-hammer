@@ -30,75 +30,42 @@ ObfuscationTechnique = Literal[
 ]
 
 
-"""
-Config Examples
-
-config = {"algorithm": algorithm}
-config = {"threshold": 4}
-
-Lemmatise
-None
-
-Replace
-DEFAULT_CONFIG = {"algorithm": "noun", "replace_with_pos": True}
-
-Linear Scrambler
-DEFAULT_LINEAR_CONFIG = {"scramble_within_sentence": False}
-
-Hierarchical Scrambler
-DEFAULT_HIERARCHICAL_CONFIG = {"algorithm": "scramble-shuffle-siblings"}
-
-Shannon
-DEFAULT_CONFIG = {"threshold": 10, "replace_with": "_"}
-"""
-
-
 class TMallet:
     def __init__(self):
         self.nlp = None
 
     def obfuscate(
-        self, text: Union[List[str], str], config: Dict
+            self, text: Union[List[str], str], config: Dict, device: str = "cpu"
     ) -> Union[List[str], str]:
         algorithm = config["algorithm"]
-        obfuscator = self._get_obfuscator(algorithm)
+        obfuscator = self._get_obfuscator(algorithm, device)
 
         if self.nlp:
             text = self.nlp(text)
 
         return obfuscator.obfuscate(text, config=config)
 
-    def analyse(self, texts: Union[List[str], str], save_plot_to: str = "dist.png"):
-        self.analyser.get_distribution(texts, save_to=save_plot_to)
-        mean_surp = self.analyser.get_mean(texts)
-        median_surp = self.analyser.get_median(texts)
-
-        print("====")
-        print("Surprisal Analysis")
-        print(f"Mean: {mean_surp}")
-        print(f"Median: {median_surp}")
-        print(f"Distribution saved to: {save_plot_to}")
-        print("====")
-
     def _get_obfuscator(
-        self, algorithm: ObfuscationTechnique
+        self, algorithm: ObfuscationTechnique, device
     ) -> Union[Obfuscator, SpaCyObfuscator]:
+        prefer_gpu = (device == "cuda")
+
         match algorithm:
             case "noun" | "noun-propn" | "no-noun" | "no-noun-propn":
-                self.nlp = get_spacy_nlp("ner")
-                return ReplaceObfuscator()
+                self.nlp = get_spacy_nlp("ner", prefer_gpu=prefer_gpu)
+                return ReplaceObfuscator(device=device)
             case "lemmatization":
-                self.nlp = get_spacy_nlp("lemma")
+                self.nlp = get_spacy_nlp("lemma", prefer_gpu=prefer_gpu)
                 return LemmaObfuscator()
             case "scramble-BoW" | "scramble-BoW-by-sentence":
                 self.nlp = None
-                return LinearScrambleObfuscator()
+                return LinearScrambleObfuscator(device=device)
             case "scramble-shuffle-siblings" | "scramble-reverse-head":
-                self.nlp = get_spacy_nlp("full")
-                return HierarchicalScrambleObfuscator()
+                self.nlp = get_spacy_nlp("full", prefer_gpu=prefer_gpu)
+                return HierarchicalScrambleObfuscator(device=device)
             case "shannon":
                 self.nlp = None
-                return ShannonObfuscator()
+                return ShannonObfuscator(device=device)
             case _:
                 raise ValueError(
                     f"Input {algorithm} invalid. Please provide a valid obfuscation algorithm."
